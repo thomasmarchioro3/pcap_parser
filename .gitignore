@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# C extension build artifacts
+*.so
+*.c.o
+src/*.so
+
+# uv lock
+uv.lock
+
+# pytest
+.pytest_cache/
+pytestdebug.log
+
+# Coverage
+.coverage
+htmlcov/
+
+# IDEs
+.idea/
+.vscode/

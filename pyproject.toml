@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pcap-parser"
+version = "0.1.0"
+description = "Parse pcap files and extract packet information into a pandas DataFrame"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["pandas>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov"]
