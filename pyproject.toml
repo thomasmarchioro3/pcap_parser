@@ -12,3 +12,18 @@ dependencies = ["pandas>=2.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov"]
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "setup.py" },
+    { file = "setup.cfg" },
+    { file = "src/**/*.c" },
+    { file = "src/**/*.h" },
+]
+
+[tool.pyright]
+include = ["pcap_parser", "tests"]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
