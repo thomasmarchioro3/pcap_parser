@@ -20,6 +20,7 @@ static PyObject *build_packet_tuple(double timestamp,
     PyObject *proto_obj;
     PyObject *src_port_obj;
     PyObject *dst_port_obj;
+    PyObject *payload_size_obj;
     PyObject *tuple;
 
     ts_obj = PyFloat_FromDouble(timestamp);
@@ -32,19 +33,23 @@ static PyObject *build_packet_tuple(double timestamp,
     dst_port_obj = packet->has_ports
         ? PyLong_FromUnsignedLong(packet->dst_port)
         : Py_NewRef(Py_None);
+    payload_size_obj = packet->has_payload_size
+        ? PyLong_FromUnsignedLong(packet->payload_size)
+        : Py_NewRef(Py_None);
 
     if (!ts_obj || !src_obj || !dst_obj || !proto_obj ||
-        !src_port_obj || !dst_port_obj) {
+        !src_port_obj || !dst_port_obj || !payload_size_obj) {
         Py_XDECREF(ts_obj);
         Py_XDECREF(src_obj);
         Py_XDECREF(dst_obj);
         Py_XDECREF(proto_obj);
         Py_XDECREF(src_port_obj);
         Py_XDECREF(dst_port_obj);
+        Py_XDECREF(payload_size_obj);
         return NULL;
     }
 
-    tuple = PyTuple_New(6);
+    tuple = PyTuple_New(7);
     if (!tuple) {
         Py_DECREF(ts_obj);
         Py_DECREF(src_obj);
@@ -52,6 +57,7 @@ static PyObject *build_packet_tuple(double timestamp,
         Py_DECREF(proto_obj);
         Py_DECREF(src_port_obj);
         Py_DECREF(dst_port_obj);
+        Py_DECREF(payload_size_obj);
         return NULL;
     }
 
@@ -61,6 +67,7 @@ static PyObject *build_packet_tuple(double timestamp,
     PyTuple_SET_ITEM(tuple, 3, proto_obj);
     PyTuple_SET_ITEM(tuple, 4, src_port_obj);
     PyTuple_SET_ITEM(tuple, 5, dst_port_obj);
+    PyTuple_SET_ITEM(tuple, 6, payload_size_obj);
 
     return tuple;
 }
@@ -147,7 +154,7 @@ static PyObject *parse_packets(PyObject *self, PyObject *args) {
 static PyMethodDef PacketParserMethods[] = {
     {"parse_packets", parse_packets, METH_VARARGS,
      "Parse a pcap file and return a list of (timestamp, src_ip, dst_ip, "
-     "protocol, src_port, dst_port) tuples."},
+     "protocol, src_port, dst_port, payload_size) tuples."},
     {NULL, NULL, 0, NULL}
 };
 

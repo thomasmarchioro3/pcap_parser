@@ -58,18 +58,49 @@ static void build_ipv4_frame(uint8_t *frame,
     memcpy(frame + 30, dst, 4);
 }
 
+static void set_tcp_header(uint8_t *frame,
+                           uint16_t src_port,
+                           uint16_t dst_port,
+                           uint8_t header_length) {
+    frame[34] = (uint8_t)(src_port >> 8);
+    frame[35] = (uint8_t)(src_port & 0xFF);
+    frame[36] = (uint8_t)(dst_port >> 8);
+    frame[37] = (uint8_t)(dst_port & 0xFF);
+    frame[46] = (uint8_t)(header_length << 4);
+}
+
+static void set_udp_header(uint8_t *frame,
+                           size_t frame_len,
+                           uint16_t src_port,
+                           uint16_t dst_port) {
+    uint16_t udp_length = (uint16_t)(frame_len - 14 - 20);
+
+    frame[34] = (uint8_t)(src_port >> 8);
+    frame[35] = (uint8_t)(src_port & 0xFF);
+    frame[36] = (uint8_t)(dst_port >> 8);
+    frame[37] = (uint8_t)(dst_port & 0xFF);
+    frame[38] = (uint8_t)(udp_length >> 8);
+    frame[39] = (uint8_t)(udp_length & 0xFF);
+}
+
+static void set_sctp_header(uint8_t *frame,
+                            uint16_t src_port,
+                            uint16_t dst_port) {
+    frame[34] = (uint8_t)(src_port >> 8);
+    frame[35] = (uint8_t)(src_port & 0xFF);
+    frame[36] = (uint8_t)(dst_port >> 8);
+    frame[37] = (uint8_t)(dst_port & 0xFF);
+}
+
 static int test_parse_tcp_packet(void) {
     static const uint8_t src[4] = {192, 168, 1, 10};
     static const uint8_t dst[4] = {10, 0, 0, 8};
-    uint8_t frame[14 + 20 + 20];
+    uint8_t frame[14 + 20 + 20 + 4];
     struct parsed_packet packet;
     enum packet_parse_status status;
 
     build_ipv4_frame(frame, sizeof(frame), 6, 0, src, dst);
-    frame[34] = 0x30;
-    frame[35] = 0x39;
-    frame[36] = 0x00;
-    frame[37] = 0x50;
+    set_tcp_header(frame, 12345, 80, 5);
 
     status = parse_ethernet_ipv4_packet(frame, sizeof(frame), &packet);
 
@@ -81,6 +112,8 @@ static int test_parse_tcp_packet(void) {
     ASSERT_TRUE(packet.has_ports);
     ASSERT_EQ_INT(packet.src_port, 12345);
     ASSERT_EQ_INT(packet.dst_port, 80);
+    ASSERT_TRUE(packet.has_payload_size);
+    ASSERT_EQ_INT(packet.payload_size, 4);
     return 0;
 }
 
@@ -97,6 +130,7 @@ static int test_parse_icmp_packet_without_ports(void) {
     ASSERT_EQ_INT(status, PACKET_PARSE_OK);
     ASSERT_STREQ(packet.protocol_name, "ICMP");
     ASSERT_TRUE(!packet.has_ports);
+    ASSERT_TRUE(!packet.has_payload_size);
     return 0;
 }
 
@@ -122,16 +156,58 @@ static int test_fragmented_udp_packet_has_no_ports(void) {
     enum packet_parse_status status;
 
     build_ipv4_frame(frame, sizeof(frame), 17, 0x2000, src, dst);
-    frame[34] = 0x1F;
-    frame[35] = 0x90;
-    frame[36] = 0x00;
-    frame[37] = 0x35;
+    set_udp_header(frame, sizeof(frame), 8080, 53);
 
     status = parse_ethernet_ipv4_packet(frame, sizeof(frame), &packet);
 
     ASSERT_EQ_INT(status, PACKET_PARSE_OK);
     ASSERT_STREQ(packet.protocol_name, "UDP");
     ASSERT_TRUE(!packet.has_ports);
+    ASSERT_TRUE(!packet.has_payload_size);
+    return 0;
+}
+
+static int test_parse_udp_payload_size(void) {
+    static const uint8_t src[4] = {192, 0, 2, 15};
+    static const uint8_t dst[4] = {198, 51, 100, 30};
+    uint8_t frame[14 + 20 + 8 + 5];
+    struct parsed_packet packet;
+    enum packet_parse_status status;
+
+    build_ipv4_frame(frame, sizeof(frame), 17, 0, src, dst);
+    set_udp_header(frame, sizeof(frame), 5000, 53);
+
+    status = parse_ethernet_ipv4_packet(frame, sizeof(frame), &packet);
+
+    ASSERT_EQ_INT(status, PACKET_PARSE_OK);
+    ASSERT_STREQ(packet.protocol_name, "UDP");
+    ASSERT_TRUE(packet.has_ports);
+    ASSERT_EQ_INT(packet.src_port, 5000);
+    ASSERT_EQ_INT(packet.dst_port, 53);
+    ASSERT_TRUE(packet.has_payload_size);
+    ASSERT_EQ_INT(packet.payload_size, 5);
+    return 0;
+}
+
+static int test_parse_sctp_ports_and_payload_size(void) {
+    static const uint8_t src[4] = {203, 0, 113, 1};
+    static const uint8_t dst[4] = {203, 0, 113, 2};
+    uint8_t frame[14 + 20 + 12 + 6];
+    struct parsed_packet packet;
+    enum packet_parse_status status;
+
+    build_ipv4_frame(frame, sizeof(frame), 132, 0, src, dst);
+    set_sctp_header(frame, 2905, 2906);
+
+    status = parse_ethernet_ipv4_packet(frame, sizeof(frame), &packet);
+
+    ASSERT_EQ_INT(status, PACKET_PARSE_OK);
+    ASSERT_STREQ(packet.protocol_name, "SCTP");
+    ASSERT_TRUE(packet.has_ports);
+    ASSERT_EQ_INT(packet.src_port, 2905);
+    ASSERT_EQ_INT(packet.dst_port, 2906);
+    ASSERT_TRUE(packet.has_payload_size);
+    ASSERT_EQ_INT(packet.payload_size, 6);
     return 0;
 }
 
@@ -155,6 +231,8 @@ int main(void) {
         {"parse_icmp_packet_without_ports", test_parse_icmp_packet_without_ports},
         {"skip_non_ipv4_frame", test_skip_non_ipv4_frame},
         {"fragmented_udp_packet_has_no_ports", test_fragmented_udp_packet_has_no_ports},
+        {"parse_udp_payload_size", test_parse_udp_payload_size},
+        {"parse_sctp_ports_and_payload_size", test_parse_sctp_ports_and_payload_size},
         {"short_frame_is_skipped", test_short_frame_is_skipped}
     };
     size_t i;

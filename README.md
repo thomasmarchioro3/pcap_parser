@@ -69,13 +69,14 @@ print(df)
 | `src_ip` | `object` (str) | Source IPv4 address (dotted-decimal) |
 | `dst_ip` | `object` (str) | Destination IPv4 address (dotted-decimal) |
 | `protocol` | `object` (str) | IANA protocol name (e.g. `TCP`, `UDP`, `ICMP`) |
-| `src_port` | `float64` | Source port — `NaN` for non-TCP/UDP protocols |
-| `dst_port` | `float64` | Destination port — `NaN` for non-TCP/UDP protocols |
+| `src_port` | `float64` | Source port — `NaN` for protocols other than TCP, UDP, and SCTP |
+| `dst_port` | `float64` | Destination port — `NaN` for protocols other than TCP, UDP, and SCTP |
+| `payload_size` | `float64` | Transport payload size in bytes after the TCP, UDP, or SCTP header — `NaN` when unavailable |
 
 **Notes:**
 - Only IPv4 packets are included; non-IP frames (ARP, IPv6, VLAN, etc.) are silently skipped.
 - Only Ethernet (DLT_EN10MB) captures are supported; other datalink types raise `ValueError`.
-- IP fragments are included but `src_port`/`dst_port` are `NaN`.
+- IP fragments are included but `src_port`, `dst_port`, and `payload_size` are `NaN`.
 
 ## Project structure
 

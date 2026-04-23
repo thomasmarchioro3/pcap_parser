@@ -23,6 +23,8 @@ struct parsed_packet {
     int has_ports;
     uint16_t src_port;
     uint16_t dst_port;
+    int has_payload_size;
+    uint16_t payload_size;
 };
 
 enum packet_parse_status parse_ethernet_ipv4_packet(const uint8_t *packet,
